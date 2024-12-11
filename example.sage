@@ -310,6 +310,34 @@ def Compute_ac( O, g, L=2 ):
                     a = a1 + a2*i;
                     return a, c;
 
+def Compute_o1o2_simple( O, alpha, a, c ):
+    assert alpha.denominator() == 2, "[Compute_o1o2_simple] Using the wrong Compute_o1o2 function"
+    (alpha1, alpha2, alpha3, alpha4) = alpha.coefficient_tuple();
+    nc = c.reduced_norm();
+    R = Integers(nc)
+    gamma = c * a.conjugate();
+    (gamma1, gamma2, gamma3, gamma4) = gamma.coefficient_tuple();
+    M  = Matrix(4,4,[ R(gamma1), R(-gamma2), R(-gamma3 * p), R(-gamma4 * p),\
+                      R(gamma2), R( gamma1), R( gamma4 * p), R(-gamma3 * p),\
+                      R(gamma3), R(-gamma4), R( gamma1),     R( gamma2),\
+                      R(gamma4), R( gamma3), R(-gamma2),     R( gamma1)]);
+    V  = vector([R(alpha1), R(alpha2), R(alpha3), R(alpha4)]);
+    o2vec = M.solve_right(V)
+    o2 = ZZ(o2vec[0]) + ZZ(o2vec[1])*i + ZZ(o2vec[2])*j + ZZ(o2vec[3])*k
+    oca = o2*gamma;
+    (oca1, oca2, oca3, oca4) = oca.coefficient_tuple();
+    beta = alpha - (1+i+j+k)/2
+    (beta1, beta2, beta3, beta4) = beta.coefficient_tuple();
+    o11, r1 = ZZ(beta1-oca1).quo_rem(nc)
+    o12, r2 = ZZ(beta2-oca2).quo_rem(nc)
+    o13, r3 = ZZ(beta3-oca3).quo_rem(nc)
+    o14, r4 = ZZ(beta4-oca4).quo_rem(nc)
+    assert r1==0 and r2==0 and r3==0 and r4==0, "[Compute_o1o2_simple] Error: o2 is not correct";
+    o1 = o11 + o12*i + o13*j + o14*k + (1+i+j+k)/2/nc
+    assert (o1 * c.reduced_norm() + o2 * c * a.conjugate()) == alpha, "[Compute_o1o2_simple] Error: output does not meet condition";
+
+    return o1, o2;
+
 def Compute_o1o2( O, alpha, a, c ):
     r"""
     alpha = o1 * N(c) + o2 * c * a.conjugate()
@@ -336,8 +364,11 @@ def Compute_o1o2( O, alpha, a, c ):
     ####    Solve for o2 first by solving it mod n(c)
     (alpha1, alpha2, alpha3, alpha4) = alpha.coefficient_tuple();
     nc = c.reduced_norm();
-    assert nc%2 == 0, "[Compute_o1o2] Odd c norm not implemented"
-    nc2 = nc//2
+    # assert nc%2 == 0, "[Compute_o1o2] Odd c norm not implemented"
+    if nc%2==0:
+        nc2 = nc//2
+    else:
+        nc2 = nc
     R  = Integers(nc2);
     gamma = c * a.conjugate();
     (gamma1, gamma2, gamma3, gamma4) = gamma.coefficient_tuple();
@@ -538,93 +569,6 @@ def ConnectMatrices_Reduced( D, g1, g2, O ):
 
     return gamma, D^2*ReducedNorm(u1);
 
-def GenerateCheatPairs():
-    p = 3 * 2^43 - 1;
-    B.<i,j,k> = QuaternionAlgebra(-1,-p);
-    O = B.maximal_order()
-
-    print(f"########    Starting example of size {p.log(2).n().floor()} bits    ########\n");
-    
-    ebound = ZZ((p.log(2).n() * 6.5).floor())
-    L = 2
-    #print(f"ebound = {ebound}");
-    foundsol = False;
-    while not foundsol:
-        e = randint(250,300);
-        g1 = RandomReduced(O,sbound=0.5);
-        s = ZZ(g1[0][0])
-        r = g1[0][1]
-        t = ZZ(g1[1][1])
-        K = GF(s)
-        c2 = K.random_element()
-        if (L^e/K(ZZ(t*p*r.reduced_norm())) - c2^2).is_square():
-            c1 = (L^e/K(ZZ(t*p*r.reduced_norm())) - c2^2).sqrt();
-            c = ZZ(c1) * r.conjugate() * j + ZZ(c2) * r.conjugate() * k;
-            le_tnc = ZZ(L^e - t * c.reduced_norm());
-            if le_tnc < 0:
-                continue;
-            lhs, rem = le_tnc.quo_rem(s);
-            if rem != 0:
-                continue;
-            else:
-                #print(f"e = {e}")
-                try:
-                    #print(f"s mod 4 = {s%4}, t mod 4 = {t%4}")
-                    if lhs.is_prime():
-                        print(f"Computing two squares of a {lhs.log(2).n().floor()}-bit number")
-                        a1, a2 = two_squares(lhs);
-                        print("Done!")
-                        a = a1 + a2*i;
-                        if gcd(a.reduced_norm(),c.reduced_norm()) == 1:
-                            foundsol = true;
-                except Exception as err:
-                    #print(err)
-                    continue;
-    print(f"    g1 = {g1}")
-    print(f"    c1 = {c1}")
-    print(f"    c2 = {c2}")
-    print(f"    c  = {c}")
-    print(f"    a  = {a}")
-    print(f"    e  = {e}")
-    foundsol = False;
-    while not foundsol:
-        g2 = RandomReduced(O,sbound=0.5);
-        s = ZZ(g2[0][0])
-        r = g2[0][1]
-        t = ZZ(g2[1][1])
-        (r1, r2, r3, r4) = r.coefficient_tuple()
-        K = GF(s)
-        c2 = K.random_element()
-        if (L^e/K(ZZ(t*p*r.reduced_norm())) - c2^2).is_square():
-            c1 = (L^e/K(ZZ(t*p*r.reduced_norm())) - c2^2).sqrt();
-            c = ZZ(c1) * r.conjugate() * j + ZZ(c2) * r.conjugate() * k;
-            le_tnc = ZZ(L^e - t * c.reduced_norm());
-            if le_tnc < 0:
-                continue;
-            lhs, rem = le_tnc.quo_rem(s);
-            if rem != 0:
-                continue;
-            else:
-                print(f"e = {e}")
-                try:
-                    print(f"s mod 4 = {s%4}, t mod 4 = {t%4}")
-                    print(f"Computing two squares of a {lhs.log(2).n().floor()}-bit number")
-                    a1, a2 = two_squares(lhs);
-                    print("Done!")
-                    foundsol = true;
-                    a = a1 + a2*i;
-                    print(a)
-                    break;
-                except Exception as err:
-                    print(err)
-                    continue;
-    print(f"    g2 = {g2}")
-    print(f"    c1 = {c1}")
-    print(f"    c2 = {c2}")
-    print(f"    c  = {c}")
-    print(f"    a  = {a}")
-    print(f"    e  = {e}")
-
 
 p = 3 * 2^43 - 1;
 B.<i,j,k> = QuaternionAlgebra(-1,-p);
@@ -650,57 +594,17 @@ assert ZZ(s * a.reduced_norm() + t * c.reduced_norm() + (c.conjugate()*r.conjuga
 
 ctx = KLPT_Context(B)
 I = O.left_ideal( [c.reduced_norm(), c * a.conjugate()] );
-alpha,J,_,_,_,_ = ctx.KLPT(I, T=2^350, returnElem=True);
+# alpha,J,_,_,_,_ = ctx.KLPT(I, T=2^400, returnElem=True);
+alpha = -25689765571812964472327497785708282685072631698985562624892464707272357710068872183841/2 + 9076128410896141384668373733345378105307090893606155360536604946024341999140081116661/2*i - 388467772179038320933806742074405547675085872567584835324855186801495527503819/2*j - 4120936610677708668968160584231689139108083183242852177033477324650799901962015/2*k;
+J = O.left_ideal([645562469521727147413979793000752968582426448207305878207664839135161905504210298657411338320034457858975792993186873344,\
+322781234760863573706989896500376484291213224103652939103832419567580952752105149328705669160017228929487896496593436672 + 322781234760863573706989896500376484291213224103652939103832419567580952752105149328705669160017228929487896496593436672*i,\
+603091228545843506322930216376321629697778935433741436249788558490402611995564783041562066413922508557243964607691497113 + 219897151776359039437561934344299669110461485943847084307376098563527890230602333158560967616206176097020949573180912396*i + j,\
+1028756546291211614299348075032774929169743897697200230150077299062036627269172748540412437117750790319198808027697458061/2 + 177425910800475398346512357719868330225813973170282642349499817918768596721956817542711695710094226795289121187685536165/2*i + 1/2*j + 1/2*k])
 print(factor(J.norm()))
 JcI = J.conjugate() * I
 Ialpha = O.left_ideal(alpha)
-# print(JcI == Ialpha)
 
-# nc = c.reduced_norm();
-# R  = Integers(nc//2);
-# w1 = randint(-10,10)
-# x1 = randint(-10,10)
-# y1 = randint(-10,10)
-# z1 = randint(-10,10)
-# o1 = w1 + x1 * i + y1 * (i + j)/2 + z1 * (1 + k)/2
-# w2 = randint(-10,10)
-# x2 = randint(-10,10)
-# y2 = randint(-10,10)
-# z2 = randint(-10,10)
-# o2 = w2 + x2 * i + y2 * (i + j)/2 + z2 * (1 + k)/2
-
-# gamma = c*a.conjugate()
-# alpha = o1 * nc + o2 * c * a.conjugate()
-# (gamma1,gamma2,gamma3,gamma4) = gamma.coefficient_tuple()
-# (alpha1,alpha2,alpha3,alpha4) = alpha.coefficient_tuple()
-# print(alpha1 == (w2 + z2/2) * gamma1 - (x2 + y2/2) * gamma2 -    p * y2/2 * gamma3 - p * z2/2 * gamma4    + nc * (w1 + z1/2))
-# print(alpha2 == (x2 + y2/2) * gamma1 + (w2 + z2/2) * gamma2 -    p * z2/2 * gamma3 + p * y2/2 * gamma4    + nc * (x1 + y1/2))
-# print(alpha3 == (     y2/2) * gamma1 + (     z2/2) * gamma2 + (w2 + z2/2) * gamma3 - (x2 + y2/2) * gamma4 + nc * y1/2)
-# print(alpha4 == (     z2/2) * gamma1 - (     y2/2) * gamma2 + (x2 + y2/2) * gamma3 + (w2 + z2/2) * gamma4 + nc * z1/2)
-
-# M  = Matrix(4,4,[ R(gamma1), R(-gamma2), R(-(gamma2/2 + p * gamma3/2)), R(gamma1/2 - p * gamma4/2),\
-#                   R(gamma2), R( gamma1), R( (gamma1/2 + p * gamma4/2)), R(gamma2/2 - p * gamma3/2),\
-#                   R(gamma3), R(-gamma4), R( (gamma1/2 - gamma4/2)),     R(gamma2/2 + gamma3/2),\
-#                   R(gamma4), R( gamma3), R( (gamma3/2 - gamma2/2)),     R(gamma1/2 + gamma4/2)]);
-# X  = vector([R(w2), R(x2), R(y2), R(z2)])
-# V  = vector([R(alpha1), R(alpha2), R(alpha3), R(alpha4)]);
-# o2vec = M.solve_right(V)
-# To2 = ZZ(o2vec[0]) + ZZ(o2vec[1]) * i + ZZ(o2vec[2]) * (i/2+j/2) + ZZ(o2vec[3]) * (1/2+k/2)
-
-# oca = To2*gamma;
-# (oca1, oca2, oca3, oca4) = oca.coefficient_tuple();
-# o11, r1 = ZZ(alpha1-oca1).quo_rem(nc)
-# o12, r2 = ZZ(alpha2-oca2).quo_rem(nc)
-# o13, r3 = ZZ(alpha3-oca3).quo_rem(nc)
-# o14, r4 = ZZ(alpha4-oca4).quo_rem(nc)
-
-# assert r1==0 and r2==0 and r3==0 and r4==0, "[Compute_o1o2] Error: o2 is not correct";
-# To1 = (o11-o14) + (o12-o13)*i + 2*o13*(i+j)/2 + 2*o14*(1+k)/2;
-# # To1 = o11 + o12*i + o13*(i+j)/2 + o14*(1+k)/2;
-# assert To1 * c.reduced_norm() + To2 * c * a.conjugate() == alpha, "[Compute_o1o2] Error: output does not meet condition";
-
-
-o1, o2 = Compute_o1o2(O, alpha, a, c);
+o1, o2 = Compute_o1o2_simple(O, alpha, a, c);
 _, aa, cc = xgcd(a.reduced_norm(), c.reduced_norm());
 b =  cc * (c.reduced_norm() * o1 + a * c.conjugate() * o2);
 d = -aa * (c * a.conjugate() * o1 + a.reduced_norm() * o2);
@@ -709,7 +613,12 @@ uprime =  Matrix(2, 2, [B(a), B(b), B(c), B(d)]);
 u1 = uprime;
 h1 = ConjugateTranspose(u1)*g1*u1;
 print(ZZ(h1[0][0]).is_prime_power())
-print(ZZ(HermitianDeterminant(u1)).is_prime_power())
+na = a.reduced_norm()
+nb = b.reduced_norm()
+nc = c.reduced_norm()
+nd = d.reduced_norm()
+Tabdc = (a.conjugate()*b*d.conjugate()*c).reduced_trace()
+print(ZZ(na*nd + nc*nb - Tabdc).is_prime_power())
 
 # b, d = Compute_bd_KLPT(O, B(a), B(c), L = 2 );
 # u1 =  Matrix(2, 2, [B(a), B(b), B(c), B(d)]);
