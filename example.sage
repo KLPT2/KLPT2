@@ -639,17 +639,18 @@ print(f"########    The Compute_ac function doesn't work in all cases,      ####
 print(f"########    and I have to look into it. But this example works      ########");
 print(f"########    well enough to test the KLPT step.                      ########\n\n");
 L = 2
-g1 = Matrix(2,2,[3221129, -20746516093107 + 308362369977*i + j - 7*k, -20746516093107 - 308362369977*i - j + 7*k, 133652833324615370970]);
+g1 = Matrix(2,2,[3415397, -1428520487029 + 1525469341101*i + j, -1428520487029 - 1525469341101*i - j, 23932497436714778957]);
 s = ZZ(B(g1[0][0]));
 r = B(g1[0][1]);
 t = ZZ(B(g1[1][1]));
-a = 25593500584688221357497261509610828 + 61953394305411223201185411176737388*i;
-c = -50967747156345259842 - 113207617151905466856*i - 11549307642522707682*j - 7563306557987223372*k;
-e  = 350;
+a = 13372821708437065250433744034046816469522433 + 47582915196688534878375296096155410984642568*i
+c = 33184923387859619749 - 41150937907654571120*i + 582423400056893113*j - 4146065789295500623*k
+e = 312;
+assert ZZ(s * a.reduced_norm() + t * c.reduced_norm() + (c.conjugate()*r.conjugate()*a).reduced_trace()).is_prime_power(), "Error: a and c does not produce a top left entry which is a power of 2"
 
 ctx = KLPT_Context(B)
 I = O.left_ideal( [c.reduced_norm(), c * a.conjugate()] );
-alpha,J,_,_,_,_ = ctx.KLPT(I, T=2^300, returnElem=True);
+alpha,J,_,_,_,_ = ctx.KLPT(I, T=2^350, returnElem=True);
 print(factor(J.norm()))
 JcI = J.conjugate() * I
 Ialpha = O.left_ideal(alpha)
@@ -707,19 +708,21 @@ d = -aa * (c * a.conjugate() * o1 + a.reduced_norm() * o2);
 uprime =  Matrix(2, 2, [B(a), B(b), B(c), B(d)]);
 u1 = uprime;
 h1 = ConjugateTranspose(u1)*g1*u1;
+print(ZZ(h1[0][0]).is_prime_power())
+print(ZZ(HermitianDeterminant(u1)).is_prime_power())
 
 # b, d = Compute_bd_KLPT(O, B(a), B(c), L = 2 );
 # u1 =  Matrix(2, 2, [B(a), B(b), B(c), B(d)]);
 # h1 = ConjugateTranspose(u1)*g1*u1;
 # 
 # 
-# g2 = Matrix(2,2,[2671681, -7661915989983 + 6268482127330*i + j - 2*k, -7661915989983 - 6268482127330*i - j + 2*k, 36680586049885730626]);
+# g2 = Matrix(2,2,[2439293, -13806033694566 - 7520372325196*i + j - 8*k, -13806033694566 + 7520372325196*i - j + 8*k, 133044213525032504367]);
 # s = ZZ(B(g2[0][0]));
 # r = B(g2[0][1]);
 # t = ZZ(B(g2[1][1]));
-# a = 
-# c = 
-# e  = 350
+# a = 35750393660878712955326929919887252786631683 + 46286600504200301725430876607031515132494632*i
+# c = -124091621182608522944 - 69704401659973054893*i - 8147814418960481716*j - 6650759827868279666*k
+# e  = 312
 # b, d = Compute_bd_KLPT(O, B(a), B(c), L = 2 );
 # u2 =  Matrix(2, 2, [B(a), B(b), B(c), B(d)]);
 # h2 = ConjugateTranspose(u2)*g2*u2;
