@@ -49,7 +49,7 @@ def RandomReduced(O, sbound=0.5):
     t = ZZ(randint(0, (ctx.p^(3*sbound)).floor()));
     while not t%2==1:
         t = ZZ(randint(0, (ctx.p^(3*sbound)).floor()));
-    for ind in range(1,1000):
+    for ind in range(86,1000):
         r = ctx.RepresentInteger(s * t - 2^ind)
         if r is None:
             continue;
@@ -107,67 +107,87 @@ def GenerateCheatPairs(e=None):
     if e is None:
         e = ZZ((p.log(2).n() * 7).floor())
 
+    print("Generating g1...")
     g1 = RandomReduced(O, sbound=0.5);
+    print("DONE!\nGenerating a and c...")
     s = ZZ(g1[0][0]);
     r = g1[0][1];
     t = ZZ(g1[1][1]);
     K = GF(s);
     a, c, e = Compute_ac( O, g1, e=e )
+    print("DONE!\nParameters generated:\n")
     print(f"gcd(n(a),n(c)) = {gcd(a.reduced_norm(),c.reduced_norm())}")
     print(f"           g1  = [{g1[0,0]}, {g1[0,1]}]")
     print(f"                 [{g1[1,0]}, {g1[1,1]}]")
     print(f"           a   = {a}")
     print(f"           c   = {c}")
     print(f"           e   = {e}")
+    print(f"       s*t - R = {s*t-r.reduced_norm()}")
+    print(f"       s mod 4 = {s%4}")
+    print(f"       t mod 4 = {t%4}")
     print(f"top left cond  = {ZZ(s * a.reduced_norm() + t * c.reduced_norm() + (c.conjugate()*r.conjugate()*a).reduced_trace()).is_prime_power()}");
 
+    print("\nGenerating g2...")
     g2 = RandomReduced(O, sbound=0.5);
-    s = ZZ(g1[0][0]);
-    r = g1[0][1];
-    t = ZZ(g1[1][1]);
+    print("DONE!\nGenerating a and c...")
+    s = ZZ(g2[0][0]);
+    r = g2[0][1];
+    t = ZZ(g2[1][1]);
     K = GF(s);
     a, c, e = Compute_ac( O, g2, e=e )
+    print("DONE!\nParameters generated:\n")
     print(f"gcd(n(a),n(c)) = {gcd(a.reduced_norm(),c.reduced_norm())}")
     print(f"           g2  = [{g2[0,0]}, {g2[0,1]}]")
     print(f"                 [{g2[1,0]}, {g2[1,1]}]")
     print(f"           a   = {a}")
     print(f"           c   = {c}")
     print(f"           e   = {e}")
+    print(f"       s*t - R = {s*t-r.reduced_norm()}")
+    print(f"       s mod 4 = {s%4}")
+    print(f"       t mod 4 = {t%4}")
     print(f"top left cond  = {ZZ(s * a.reduced_norm() + t * c.reduced_norm() + (c.conjugate()*r.conjugate()*a).reduced_trace()).is_prime_power()}");
 
-GenerateCheatPairs(e=1000)
-#MoreRandomCheat(e=1000)
+GenerateCheatPairs()
+#MoreRandomCheat()
 
 
 
-#Le = 2^1000;
-#p  = 3 * 2^43 - 1;
-#B.<i,j,k> = QuaternionAlgebra(-1,-p);
-#O = B.quaternion_order([1,i,i/2+j/2,1/2+k/2])
-#
-#r = 183473551550885215239093361195645100494348123432123+103489357288336036570742620116745037321594270065985*i+5125*j+6646*k;
-#s = 5421341;
-#t = 8184799884502414753566140534100785841846441788692629529322485064161801624924877657812355294081;
-#R = ZZ(r.reduced_norm())
-#print(s*t-R);
-#K = GF(s)
-#u = K(t*p*R);
-#foundsol = False
-#while not foundsol:
-#    c20 = K.random_element()
-#    if (Le*(u^(-1))-c20^2).is_square():
-#        c10 = (Le*(u^(-1))-c20^2).sqrt();
-#        c2  = ZZ(c20);
-#        c1  = ZZ(c10);
-#        if ((c1-c2) % 2) == 1:
-#            c = c1*r.conjugate()*j + c2*r.conjugate()*k;
-#            A0 = ZZ(Le-t*c.reduced_norm());
-#            A1 = A0//s;
-#            A  = A1//twoadic(A1);
-#            if A.is_prime() and A%4==1:
-#                a1, a2 = two_squares(A)
-#                foundsol = True
-#a = a1 + a2*i
-#print(s%4)
-#print(t%4)
-#print(ZZ(s * a.reduced_norm() + t * c.reduced_norm() + (c.conjugate()*r.conjugate()*a).reduced_trace()).is_prime_power())
+
+
+
+
+# Le = 2^1000;
+# p  = 3 * 2^43 - 1;
+# B.<i,j,k> = QuaternionAlgebra(-1,-p);
+# O = B.quaternion_order([1,i,i/2+j/2,1/2+k/2])
+
+# Le = 2^312;
+# s = 4477661
+# r = 22033760711549 + 3275364585597*i + j - 16*k
+# t = 110820051868411898543
+# #r = 183473551550885215239093361195645100494348123432123+103489357288336036570742620116745037321594270065985*i+5125*j+6646*k;
+# #s = 5421341;
+# #t = 8184799884502414753566140534100785841846441788692629529322485064161801624924877657812355294081;
+# R = ZZ(r.reduced_norm())
+# print(s*t-R);
+# K = GF(s)
+# u = K(t*p*R);
+# foundsol = False
+# while not foundsol:
+#     c20 = K.random_element()
+#     if (Le*(u^(-1))-c20^2).is_square():
+#         c10 = (Le*(u^(-1))-c20^2).sqrt();
+#         c2  = ZZ(c20);
+#         c1  = ZZ(c10);
+#         if ((c1-c2) % 2) == 1:
+#             c = c1*r.conjugate()*j + c2*r.conjugate()*k;
+#             A0 = ZZ(Le-t*c.reduced_norm());
+#             A1 = A0//s;
+#             A  = A1//twoadic(A1);
+#             if A.is_prime() and A%4==1:
+#                 a1, a2 = two_squares(A)
+#                 foundsol = True
+# a = a1 + a2*i
+# print(s%4)
+# print(t%4)
+# print(ZZ(s * a.reduced_norm() + t * c.reduced_norm() + (c.conjugate()*r.conjugate()*a).reduced_trace()).is_prime_power())
