@@ -8,6 +8,16 @@ def _matrix_to_gens(M, B):
     """
     return [sum(c * g for c, g in zip(row, B)) for row in M]
 
+def twoadic(N):
+    """
+    This function returns the highest power of 2
+    in the factorisation of the input N.
+    """
+    M = N
+    while (N % 2) == 0:
+        N = N//2;
+    return (M // N);
+
 def QuaternionInverse( a ):
     """
     Returns the inverse of a quaternion element
@@ -31,7 +41,7 @@ def MatInverse( u ):
     uinv = ConjugateTranspose(u) * Matrix(2,2,[z, -y, -(y.conjugate()), x]) / unorm
     return uinv
 
-def RandomReduced(O, sbound=0.5):
+def RandomReduced(O, sbound=0.8):
     """
     This function returns a random reduced matrix where the definition
     of a reduced matrix is given in Definition 3.11 of the paper.
@@ -43,12 +53,60 @@ def RandomReduced(O, sbound=0.5):
     t = ZZ(randint(0, (ctx.p^(3*sbound)).floor()));
     while t%4 != 2:
         t = ZZ(randint(0, (ctx.p^(3*sbound)).floor()));
-    for ind in range(1,1000):
+    for ind in range(130,1000):
         r = ctx.RepresentInteger(s * t - 2^ind)
         if r is None:
             continue;
         else:
             return Matrix(2,2,[s,r,r.conjugate(),t]);
+
+def GenerateCheatPairs(e=None):
+    p = 3 * 2^43 - 1;
+    B.<i,j,k> = QuaternionAlgebra(-1,-p);
+    O = B.quaternion_order([1,i,i/2+j/2,1/2+k/2])
+
+    if e is None:
+        e = ZZ((p.log(2).n() * 7).floor())
+
+    print("Generating g1...")
+    g1 = RandomReduced(O, sbound=0.8);
+    print("DONE!\nGenerating a and c...")
+    s = ZZ(g1[0][0]);
+    r = g1[0][1];
+    t = ZZ(g1[1][1]);
+    K = GF(s);
+    a, c, e = Compute_ac( O, g1, e=e )
+    print("DONE!\nParameters generated:\n")
+    print(f"gcd(n(a),n(c)) = {gcd(a.reduced_norm(),c.reduced_norm())}")
+    print(f"           g1  = [{g1[0,0]}, {g1[0,1]}]")
+    print(f"                 [{g1[1,0]}, {g1[1,1]}]")
+    print(f"           a   = {a}")
+    print(f"           c   = {c}")
+    print(f"           e   = {e}")
+    print(f"       s*t - R = {s*t-r.reduced_norm()}")
+    print(f"       s mod 4 = {s%4}")
+    print(f"       t mod 4 = {t%4}")
+    print(f"top left cond  = {ZZ(s * a.reduced_norm() + t * c.reduced_norm() + (c.conjugate()*r.conjugate()*a).reduced_trace()).is_prime_power()}");
+
+    print("\nGenerating g2...")
+    g2 = RandomReduced(O, sbound=0.5);
+    print("DONE!\nGenerating a and c...")
+    s = ZZ(g2[0][0]);
+    r = g2[0][1];
+    t = ZZ(g2[1][1]);
+    K = GF(s);
+    a, c, e = Compute_ac( O, g2, e=e )
+    print("DONE!\nParameters generated:\n")
+    print(f"gcd(n(a),n(c)) = {gcd(a.reduced_norm(),c.reduced_norm())}")
+    print(f"           g2  = [{g2[0,0]}, {g2[0,1]}]")
+    print(f"                 [{g2[1,0]}, {g2[1,1]}]")
+    print(f"           a   = {a}")
+    print(f"           c   = {c}")
+    print(f"           e   = {e}")
+    print(f"       s*t - R = {s*t-r.reduced_norm()}")
+    print(f"       s mod 4 = {s%4}")
+    print(f"       t mod 4 = {t%4}")
+    print(f"top left cond  = {ZZ(s * a.reduced_norm() + t * c.reduced_norm() + (c.conjugate()*r.conjugate()*a).reduced_trace()).is_prime_power()}");
 
 def ConjugateTranspose( M ):
     r"""
@@ -69,7 +127,7 @@ def ReducedNorm( u ):
     ## Alternatively, we can return (u*ConjugateTranspose(u)).determinant();
     return a.reduced_norm() * d.reduced_norm() + b.reduced_norm() * c.reduced_norm() - (a.conjugate() * b * d.conjugate() * c).reduced_trace();
 
-def Compute_ac( O, g, L=2 ):
+def Compute_ac( O, g, L=2, e=None ):
     """
     Given a polarisation matrix g, this function returns a and c
     such that 
@@ -92,25 +150,28 @@ def Compute_ac( O, g, L=2 ):
 
     ####    Solve t * p * n(r) * (c1^2 + c2^2) = L^e mod s
     K = GF(s);
-    c2 = K.random_element();
-    ebound = ZZ((p.log(2).n() * 7).floor())
-    for e in range(ebound):
-        if (L^e/K(ZZ(t*p*r.reduced_norm())) - c2^2).is_square():
-            #print(f"Square at e={e}")
-            c1 = (L^e/K(ZZ(t*p*r.reduced_norm())) - c2^2).sqrt();
-            c = ZZ(c1) * r.conjugate() * j + ZZ(c2) * r.conjugate() * k;
-            le_tnc = ZZ(L^e - t * c.reduced_norm());
-            lhs, rem = le_tnc.quo_rem(s);
-            if rem != 0: continue;
-            else:
-                #print(f"Rem=0 at e={e}")
-                try:
-                    a1, a2 = two_squares(lhs);
-                except:
-                    continue;
-                else:
-                    a = a1 + a2*i;
-                    return a, c;
+    if e is None:
+        e= ZZ((p.log(2).n() * 7).floor())
+    print(f" e = {e}");
+    Le = 2^e
+    foundsol = False
+    u = K(ZZ(t*p*r.reduced_norm()))
+    while not foundsol:
+        c20 = K.random_element();
+        if (Le * u^(-1) - c20^2).is_square():
+            c10 = (Le * u^(-1) - c20^2).sqrt();
+            c2 = ZZ(c20);
+            c1 = ZZ(c10);
+            if ((c1-c2) % 2) == 1:
+                c  = c1 * r.conjugate() * j + c2 * r.conjugate() * k;
+                A0 = ZZ(Le-t*c.reduced_norm());
+                A1 = A0 // s;
+                A  = A1 // twoadic(A1);
+                if A.is_prime() and A%4 == 1:
+                    a1, a2 = two_squares(A)
+                    foundsol = True
+    a = a1 + a2*i;
+    return a, c, e
 
 def Compute_o1o2( O, alpha, a, c ):
     """
@@ -156,7 +217,7 @@ def Compute_o1o2( O, alpha, a, c ):
 
     return o1, o2;
 
-def Compute_bd_KLPT(O, a, c, L = 2):
+def Compute_bd_KLPT(O, a, c, L = 2, e = 300):
     """
     This function is a continuation from the Compute_ac
     function and is used to obtain a matrix u = [a b] where 
@@ -172,21 +233,20 @@ def Compute_bd_KLPT(O, a, c, L = 2):
     I = O.left_ideal( [c.reduced_norm(), c * a.conjugate()] );
     if verbose:
         print("DONE!\nCompute_bd: KLPT... ");
-    alpha,J,_,_,_,_ = ctx.KLPT(I,T=2^200,returnElem=True);
+    alpha,J,_,_,_,_ = ctx.KLPT(I,T=L^e,returnElem=True);
     if verbose:
         print("Done!\nCompute_bd: Computing b and d... ");
+    e = factor(ZZ(J.norm()))[0][1]
 
     ####    Note that this is not the principle generator, so we need to find alpha first.
     ####    Do this by getting the Gram matrix of the generators and then use LLL.
-    Ialpha = O.left_ideal(alpha)
-    
     o1, o2 = Compute_o1o2(O, alpha, a, c);
     _, aa, cc = xgcd(a.reduced_norm(), c.reduced_norm());
     b =  cc * ( c.reduced_norm() * o1.conjugate() + a * c.conjugate() * o2.conjugate());
     d = -aa * (c * a.conjugate() * o1.conjugate() +  a.reduced_norm() * o2.conjugate());
     if verbose:
         print("Done!\n");
-    return b, d;
+    return b, d, e;
 
 def FindAlpha( g, O ):
     """
@@ -428,7 +488,8 @@ def FastExample():
     print(f"     Norm of u is a prime power: {ZZ(ReducedNorm(u1)).is_prime_power()}.")
     print(f"               Factorisation is: {factor(ZZ(ReducedNorm(u1)))}")
     
-    g2 = Matrix(2,2,[9649191169, -923954084130295985514 + 159836740039816258651*i + j - 15*k, -923954084130295985514 - 159836740039816258651*i - j + 15*k, 91261541728430194367609532073051]);
+    g2 = Matrix(2,2,[9649191169, -923954084130295985514 + 159836740039816258651*i + j - 15*k,\
+     -923954084130295985514 - 159836740039816258651*i - j + 15*k, 91261541728430194367609532073051]);
     s2 = ZZ(B(g2[0][0]));
     r2 = B(g2[0][1]);
     t2 = ZZ(B(g2[1][1]));
@@ -482,4 +543,178 @@ def FastExample():
     print(f"\n\n   gamma^* g2 gamma == ell^e g1: {LHS == RHS}")
     print(f"       e = 1192, L = 2")
 
-FastExample()
+def SlowExample():
+    """
+    This is a semi-hardcoded example to show the 
+    correctness of KLPT^2. This is the slower example
+    but uses the same g1 and g2 as in the FastExample.
+
+    g1 and g2 are computed using a cheat function that  
+    returns reduced matrices. The values a, b, c, d are    
+    computed using Compute_ac and Compute_bd_KLPT.  
+    This just provides a proof-of-concept for the algo. 
+    """
+    p = 3 * 2^43 - 1;
+    B.<i,j,k> = QuaternionAlgebra(-1,-p);
+    O = B.quaternion_order([1,i,i/2+j/2,1/2+k/2])
+    
+    print(f"########    Starting example of size {p.log(2).n().floor()} bits    ########\n");
+    print(f"########    This is a semi-hardcoded example to show the            ########")
+    print(f"########    correctness of KLPT^2. This is the slower example       ########")
+    print(f"########    but uses the same g1 and g2 as in the FastExample.      ########")
+    print(f"########    g1 and g2 are computed using a cheat function that      ########")
+    print(f"########    returns reduced matrices. The values a, b, c, d are     ########")
+    print(f"########    computed using Compute_ac and Compute_bd_KLPT.          ########")
+    print(f"########    This just provides a proof-of-concept for the algo.     ########")
+    L = 2
+    g1 = Matrix(2,2,[50890016657, -863067848249479309881 + 1137349014214088243244*i + j - k,\
+     -863067848249479309881 - 1137349014214088243244*i - j + k, 40082714730313402201920563137231]);
+    s1 = g1[0][0]
+    r1 = g1[0][1]
+    t1 = g1[1][1]
+    a1, c1, e1 = Compute_ac( O, g1, e=350 )
+    assert ZZ(s1 * a1.reduced_norm() + t1 * c1.reduced_norm() + (c1.conjugate()*r1.conjugate()*a1).reduced_trace()).is_prime_power(), "Error: a and c does not produce a top left entry which is a power of 2"
+    
+    b1, d1, f1 = Compute_bd_KLPT(O, a1, c1, L = 2, e = 300)
+    
+    u1 =  Matrix(2, 2, [B(a1), B(b1), B(c1), B(d1)]);
+    h1 = ConjugateTranspose(u1)*g1*u1;
+    print(f"Top left entry is a prime power: {ZZ(h1[0][0]).is_prime_power()}.")
+    print(f"               Factorisation is: {factor(ZZ(h1[0][0]))}")
+    print(f"     Norm of u is a prime power: {ZZ(ReducedNorm(u1)).is_prime_power()}.")
+    print(f"               Factorisation is: {factor(ZZ(ReducedNorm(u1)))}")
+    
+    g2 = Matrix(2,2,[9649191169, -923954084130295985514 + 159836740039816258651*i + j - 15*k,\
+     -923954084130295985514 - 159836740039816258651*i - j + 15*k, 91261541728430194367609532073051]);
+    s2 = g2[0][0];
+    r2 = g2[0][1];
+    t2 = g2[1][1];
+
+    f2 = 0
+    while f2 != f1:
+        if f2 == 0:
+            print(f"Computing on second matrix")
+        else:
+            print(f"Re-computing on second matrix because previous f={f2}, and not {f1}")
+        a2, c2, e2 = Compute_ac( O, g2, e=e1 )
+        assert ZZ(s2 * a2.reduced_norm() + t2 * c2.reduced_norm() + (c2.conjugate()*r2.conjugate()*a2).reduced_trace()).is_prime_power(), "Error: a and c does not produce a top left entry which is a power of 2"
+        
+        b2, d2, f2 = Compute_bd_KLPT(O, a2, c2, L = 2, e = 300)
+        
+    u2 =  Matrix(2, 2, [B(a2), B(b2), B(c2), B(d2)]);
+    h2 = ConjugateTranspose(u2)*g2*u2;
+    print(f"Top left entry is a prime power: {ZZ(h2[0][0]).is_prime_power()}.")
+    print(f"               Factorisation is: {factor(ZZ(h2[0][0]))}")
+    print(f"     Norm of u is a prime power: {ZZ(ReducedNorm(u2)).is_prime_power()}.")
+    print(f"               Factorisation is: {factor(ZZ(ReducedNorm(u2)))}")
+    
+    D = h1[0][0];
+    assert D == h2[0][0], "[ConnectMatrices] Error: ChoosePolarisationPrimePower did not return the same first entries";
+    assert ZZ(D).is_prime_power(), "[ConnectMatrices] Error: ChoosePolarisationPrimePower did not return prime power";
+    
+    ##  Constructing matrix tau, which is of the form:
+    ##  [ D, r1-r2 ]
+    ##  [ 0,   D   ]
+    r1 = h1[0][1];
+    t1 = h1[1][1];
+    
+    r2 = h2[0][1];
+    t2 = h2[1][1];
+    tau = Matrix(2,2,[D,r1-r2,0,D]);
+    
+    ##  Constructing matrix gamma which is given by
+    ##  tau^* * u_2^* * u_1^{-1} * mathcal{N}(u_1)
+    gamma = u2 * tau * MatInverse(u1) * ReducedNorm(u1)
+    
+    LHS = ConjugateTranspose(gamma)*g2*gamma;
+    assert ZZ(LHS[0][0]) % ZZ(g1[0][0]) == 0, "Not able to connect matrices";
+    finale = factor(ZZ(LHS[0][0])//ZZ(g1[0][0]))[0][1]
+    RHS = 2^finale * g1
+    print(f"\n\n   gamma^* g2 gamma == ell^e g1: {LHS == RHS}")
+    print(f"       e = {finale}, L = 2")
+
+def NewExample():
+    """
+    This is a semi-hardcoded example to show the 
+    correctness of KLPT^2. This is the slower example
+    but uses the same g1 and g2 as in the FastExample.
+
+    g1 and g2 are computed using a cheat function that  
+    returns reduced matrices. The values a, b, c, d are    
+    computed using Compute_ac and Compute_bd_KLPT.  
+    This just provides a proof-of-concept for the algo. 
+    """
+    p = 3 * 2^43 - 1;
+    B.<i,j,k> = QuaternionAlgebra(-1,-p);
+    O = B.quaternion_order([1,i,i/2+j/2,1/2+k/2])
+    
+    print(f"########    Starting example of size {p.log(2).n().floor()} bits    ########\n");
+    print(f"########    This is a semi-hardcoded example to show the            ########")
+    print(f"########    correctness of KLPT^2. This is the slower example       ########")
+    print(f"########    but uses the same g1 and g2 as in the FastExample.      ########")
+    print(f"########    g1 and g2 are computed using a cheat function that      ########")
+    print(f"########    returns reduced matrices. The values a, b, c, d are     ########")
+    print(f"########    computed using Compute_ac and Compute_bd_KLPT.          ########")
+    print(f"########    This just provides a proof-of-concept for the algo.     ########")
+    L = 2
+    g1 = RandomReduced(O, sbound=0.8);
+    s1 = g1[0][0]
+    r1 = g1[0][1]
+    t1 = g1[1][1]
+    a1, c1, e1 = Compute_ac( O, g1, e=400 )
+    assert ZZ(s1 * a1.reduced_norm() + t1 * c1.reduced_norm() + (c1.conjugate()*r1.conjugate()*a1).reduced_trace()).is_prime_power(), "Error: a and c does not produce a top left entry which is a power of 2"
+    
+    b1, d1, f1 = Compute_bd_KLPT(O, a1, c1)
+    
+    u1 =  Matrix(2, 2, [B(a1), B(b1), B(c1), B(d1)]);
+    h1 = ConjugateTranspose(u1)*g1*u1;
+    print(f"Top left entry is a prime power: {ZZ(h1[0][0]).is_prime_power()}.")
+    print(f"               Factorisation is: {factor(ZZ(h1[0][0]))}")
+    print(f"     Norm of u is a prime power: {ZZ(ReducedNorm(u1)).is_prime_power()}.")
+    print(f"               Factorisation is: {factor(ZZ(ReducedNorm(u1)))}")
+    
+    f2 = 0
+    while f1 != f2:
+        g2 = RandomReduced(O, sbound=0.8)
+        s2 = g2[0][0];
+        r2 = g2[0][1];
+        t2 = g2[1][1];
+        a2, c2, e2 = Compute_ac( O, g2, e=e1 )
+        assert ZZ(s2 * a2.reduced_norm() + t2 * c2.reduced_norm() + (c2.conjugate()*r2.conjugate()*a2).reduced_trace()).is_prime_power(), "Error: a and c does not produce a top left entry which is a power of 2"
+        
+        b2, d2, f2 = Compute_bd_KLPT(O, a2, c2)
+        
+    u2 =  Matrix(2, 2, [B(a2), B(b2), B(c2), B(d2)]);
+    h2 = ConjugateTranspose(u2)*g2*u2;
+    print(f"Top left entry is a prime power: {ZZ(h2[0][0]).is_prime_power()}.")
+    print(f"               Factorisation is: {factor(ZZ(h2[0][0]))}")
+    print(f"     Norm of u is a prime power: {ZZ(ReducedNorm(u2)).is_prime_power()}.")
+    print(f"               Factorisation is: {factor(ZZ(ReducedNorm(u2)))}")
+    
+    D = h1[0][0];
+    assert D == h2[0][0], "[ConnectMatrices] Error: ChoosePolarisationPrimePower did not return the same first entries";
+    assert ZZ(D).is_prime_power(), "[ConnectMatrices] Error: ChoosePolarisationPrimePower did not return prime power";
+    
+    ##  Constructing matrix tau, which is of the form:
+    ##  [ D, r1-r2 ]
+    ##  [ 0,   D   ]
+    r1 = h1[0][1];
+    t1 = h1[1][1];
+    
+    r2 = h2[0][1];
+    t2 = h2[1][1];
+    tau = Matrix(2,2,[D,r1-r2,0,D]);
+    
+    ##  Constructing matrix gamma which is given by
+    ##  tau^* * u_2^* * u_1^{-1} * mathcal{N}(u_1)
+    gamma = u2 * tau * MatInverse(u1) * ReducedNorm(u1)
+    
+    LHS = ConjugateTranspose(gamma)*g2*gamma;
+    assert ZZ(LHS[0][0]) % ZZ(g1[0][0]) == 0, "Not able to connect matrices";
+    finale = factor(ZZ(LHS[0][0])//ZZ(g1[0][0]))[0][1]
+    RHS = 2^finale * g1
+    print(f"\n\n   gamma^* g2 gamma == ell^e g1: {LHS == RHS}")
+    print(f"       e = {finale}, L = 2")
+
+
+SlowExample()
