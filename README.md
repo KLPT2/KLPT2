@@ -1,14 +1,17 @@
-There are a few parallel files that you can run. They are very messy at the moment, so apologies!
+This is a proof-of-concept for the correctness of the KLPT2 algorithm.
 
-You can run example.sage, or genEG.sage.
-These two files require cost.py and klpt_panny.py in the same folder.
+Description of files:
+ - G2KLPT.sage contains most of the functions required to run the KLPT2 algorithm. This is meant to act as a library for future computations.
+ - cost.py and klpt_panny.py are files that have been pulled from https://github.com/friends-of-quaternions/deuring/tree/main. Functions in these files are called in this proof-of-concept.
+ - genEG.sage generates examples to be run and is mainly used for debugging.
+ - example.sage contains an example that can be ran to demonstrate the correctness of the KLPT2 algorithm.
 
-The first file example.sage runs a small example to show that it works. The example begins with a reduced matrix as defined in Definition 3.11 in the paper.
+There are options to run 3 examples in example.sage FastExample(), SlowExample(), NewExample():
+ - FastExample() begins with a reduced matrix as defined in Definition 3.11 in the paper. Solutions obtained from previous computations have been hardcoded into the example to demonstrate the correctness of the algorithm.
+ - SlowExample() begins with a reduced matrix as defined in Definition 3.11 in the paper (exactly the same as FastExample() so far), but instead of hardcoding the intermediate values as in FastExample(), SlowExample() will re-compute these values. Due to the randomised nature of the intermediate steps, errors and incomplete computations are to be expected. Apologies about that!
+ - NewExample() aims to generate a totally new example of a reduced matrix and show that KLPT2 works. Again, errors and incomplete computations are to be expected, and apologies!
 
-The second file is genEG.sage which is used to generate small examples for you to use.
-
-The final file is G2KLPT.sage which contains all the functions required for the G2KLPT algorithm to complete.
-Key functions in this file include:
+To use the functions in this repo, note the key functions required for the KLPT2 algorithm:
  - RandomPolarisation( O, sbound=20 ) which produces a random polarisation
  - Compute_ac_LLL( O, g ) which computes values a and c of the transformation matrix such that the resulting polarisation matrix has a prime top left entry. This is the first step to get a reduced matrix.
  - Compute_bd_KLPT( O, a, c, L=2 ) which computes values b and d of the transformation matrix such that the transformation matrix has determinant a power of L. This is used in conjunction with Compute_ac_LLL to get a transformation matrix that will transform a given polarisation matrix into a reduced matrix.
